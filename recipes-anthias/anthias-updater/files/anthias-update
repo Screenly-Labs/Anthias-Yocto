@@ -1,0 +1,109 @@
+#!/bin/sh
+#
+# Poll a static update manifest and install the bundle it points at.
+#
+# Deliberately dumb: one HTTPS GET of a small JSON file, a version compare, and
+# `rauc install`. No update server, no agent, no inbound ports — a signage box
+# on a shop network should never need to be reachable from outside.
+#
+# Trust does NOT come from HTTPS. The bundle is verified against the RAUC
+# keyring baked into the rootfs, so a compromised manifest host can at worst
+# feed us a bundle we refuse to install. The sha256 in the manifest is a
+# cheap integrity pre-check so we don't hand a truncated download to rauc.
+set -eu
+
+CONF=/etc/anthias-update.conf
+[ -r "$CONF" ] && . "$CONF"
+
+: "${ANTHIAS_UPDATE_URL:=}"
+: "${ANTHIAS_UPDATE_REBOOT:=1}"
+: "${ANTHIAS_UPDATE_DIR:=/data/rauc/downloads}"
+# Overridable so the logic can be exercised off-device.
+: "${ANTHIAS_RAUC_CONF:=/usr/lib/rauc/system.conf}"
+: "${ANTHIAS_VERSION_FILE:=/etc/anthias-version}"
+
+log() { echo "anthias-update: $*" >&2; }
+
+if [ -z "$ANTHIAS_UPDATE_URL" ]; then
+    log "no ANTHIAS_UPDATE_URL configured in $CONF; nothing to do"
+    exit 0
+fi
+
+COMPATIBLE=$(awk -F= '/^compatible=/{print $2; exit}' "$ANTHIAS_RAUC_CONF")
+[ -n "$COMPATIBLE" ] || { log "cannot determine compatible string"; exit 1; }
+
+MANIFEST=$(mktemp)
+# shellcheck disable=SC2064
+trap "rm -f '$MANIFEST'" EXIT
+
+if ! curl -fsS --retry 3 --retry-delay 5 --max-time 60 \
+        -o "$MANIFEST" "${ANTHIAS_UPDATE_URL}/${COMPATIBLE}/latest.json"; then
+    log "manifest fetch failed; will retry on the next timer tick"
+    exit 0
+fi
+
+jget() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$MANIFEST" | head -1; }
+
+M_COMPATIBLE=$(jget compatible)
+M_VERSION=$(jget version)
+M_URL=$(jget url)
+M_SHA=$(jget sha256)
+
+[ -n "$M_VERSION" ] && [ -n "$M_URL" ] || { log "malformed manifest"; exit 1; }
+
+if [ "$M_COMPATIBLE" != "$COMPATIBLE" ]; then
+    log "manifest is for '$M_COMPATIBLE', this device is '$COMPATIBLE' - refusing"
+    exit 1
+fi
+
+# What this slot is running. Baked in at build time by anthias-updater.bb, so
+# after an A/B swap the new rootfs carries its own version and the comparison
+# is naturally correct.
+#
+# Deliberately NOT parsed out of `rauc status --output-format=json`: the
+# version lives at slots.<slot>.slot_status.bundle.version, and there is no
+# JSON parser on this image to read it with.
+CURRENT=$(cat "$ANTHIAS_VERSION_FILE" 2>/dev/null || echo unknown)
+
+if [ "$M_VERSION" = "$CURRENT" ]; then
+    log "already at $CURRENT"
+    exit 0
+fi
+
+log "update available: $CURRENT -> $M_VERSION"
+
+mkdir -p "$ANTHIAS_UPDATE_DIR"
+BUNDLE="${ANTHIAS_UPDATE_DIR}/update.raucb"
+rm -f "$BUNDLE"
+
+if ! curl -fsS --retry 3 --retry-delay 10 -o "$BUNDLE" "$M_URL"; then
+    log "bundle download failed"
+    rm -f "$BUNDLE"
+    exit 0
+fi
+
+if [ -n "$M_SHA" ]; then
+    ACTUAL=$(sha256sum "$BUNDLE" | cut -d' ' -f1)
+    if [ "$ACTUAL" != "$M_SHA" ]; then
+        log "sha256 mismatch (manifest $M_SHA, got $ACTUAL) - discarding"
+        rm -f "$BUNDLE"
+        exit 1
+    fi
+fi
+
+# rauc verifies the signature against the baked-in keyring here. A bundle we
+# do not trust never reaches a slot.
+if ! rauc install "$BUNDLE"; then
+    log "rauc install failed"
+    rm -f "$BUNDLE"
+    exit 1
+fi
+rm -f "$BUNDLE"
+
+log "installed $M_VERSION into the inactive slot"
+if [ "$ANTHIAS_UPDATE_REBOOT" = "1" ]; then
+    log "rebooting into the new slot"
+    systemctl reboot
+else
+    log "reboot suppressed by ANTHIAS_UPDATE_REBOOT=0"
+fi

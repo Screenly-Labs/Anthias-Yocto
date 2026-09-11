@@ -1,0 +1,52 @@
+# Lockdown overlay: turns the development image into something you would put
+# in a shop window.
+#
+#   kas build meta-anthias/kas/anthias-nanopi-r3s-lts.yml:meta-anthias/kas/production.yml
+#
+# `anthias` below deliberately reuses the key name from the main config: kas
+# merges local_conf_header by key, so redefining it REPLACES the development
+# block (empty root password, serial autologin) rather than appending to it.
+# Check build/conf/local.conf after any change here - renaming the key would
+# silently leave the dev block in place.
+header:
+  version: 14
+
+# Passed through into the bitbake datastore so CI can inject secrets without
+# editing a tracked file.
+env:
+  ANTHIAS_SIGNING_DIR: ""
+  ANTHIAS_UPDATE_URL: ""
+  ANTHIAS_SSH_AUTHORIZED_KEY: ""
+  ANTHIAS_VERSION: ""
+
+local_conf_header:
+  anthias: |
+    # No empty passwords, no autologin, no root on the console. The operator
+    # path is nmtui on the serial console plus an SSH key you provision.
+    EXTRA_IMAGE_FEATURES = ""
+    IMAGE_FEATURES:remove = "debug-tweaks allow-empty-password allow-root-login empty-root-password serial-autologin-root post-install-logging"
+    INHERIT += "extrausers"
+    EXTRA_USERS_PARAMS = "usermod -L -s /sbin/nologin root;"
+
+  hardening: |
+    # Shell functions cannot live in a conf file, so they are in
+    # classes/anthias-hardening.bbclass.
+    INHERIT += "anthias-hardening"
+
+    # The rootfs is one half of a RAUC A/B pair and is never written to at
+    # runtime; all state is on /data.
+    IMAGE_FEATURES:append = " read-only-rootfs"
+    IMAGE_INSTALL:append = " systemd-conf"
+
+    # REQUIRED unless you want a genuinely unreachable device: root is locked
+    # and the anthias user has no password, so this key is the only way in.
+    #ANTHIAS_SSH_AUTHORIZED_KEY = "ssh-ed25519 AAAA... ops@screenly"
+
+  release: |
+    # Makes anthias-bundle.bb fatal if it is still using the committed
+    # development signing key.
+    ANTHIAS_RELEASE = "1"
+
+    # Where devices built from this image look for updates: the Pages site
+    # that publishes the manifests.
+    #ANTHIAS_UPDATE_URL = "https://<owner>.github.io/<repo>"

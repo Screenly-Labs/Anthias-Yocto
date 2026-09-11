@@ -12,6 +12,7 @@ IMAGE_FEATURES:remove = "package-management"
 
 IMAGE_INSTALL += " \
     anthias-stack \
+    anthias-updater \
     docker-compose \
     docker-moby \
     rauc \

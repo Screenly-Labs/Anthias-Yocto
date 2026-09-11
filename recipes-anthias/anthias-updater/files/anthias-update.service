@@ -1,0 +1,15 @@
+[Unit]
+Description=Check for and install an Anthias OS update
+Documentation=https://rauc.readthedocs.io/
+After=network-online.target time-sync.target
+Wants=network-online.target
+RequiresMountsFor=/data
+# Never fight the application stack for bandwidth during first-boot container pulls.
+After=anthias.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/anthias/anthias-update
+# A signage box is unattended; a failed check must never wedge the unit.
+SuccessExitStatus=0
+TimeoutStartSec=3600

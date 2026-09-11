@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodic Anthias OS update check
+
+[Timer]
+# First check shortly after boot, then daily. RandomizedDelaySec spreads a
+# fleet out so a thousand players do not hit the release host at once.
+OnBootSec=15min
+OnUnitActiveSec=1d
+RandomizedDelaySec=4h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

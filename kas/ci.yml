@@ -1,0 +1,40 @@
+# CI overlay: makes the build fit a hosted runner's disk and go fast on a
+# warm cache.
+#
+#   kas build meta-anthias/kas/anthias-nanopi-r3s-lts.yml:meta-anthias/kas/ci.yml
+#
+# Measured on a 6-core aarch64 box, from cold: 4978 tasks, ~75 min, and a
+# TMPDIR that peaked at 56 GB. The 56 GB is the problem on a hosted runner,
+# hence rm_work below - it deletes each recipe's work directory once that
+# recipe's sstate package is written, which is exactly the tradeoff you want
+# in CI (nothing to debug interactively) and exactly wrong locally.
+header:
+  version: 14
+
+local_conf_header:
+  ci-diskspace: |
+    INHERIT += "rm_work"
+    # Keep the image and bundle recipes' work dirs - do_rootfs output is worth
+    # having when a build fails at the very end.
+    RM_WORK_EXCLUDE += "anthias-image anthias-bundle"
+
+  ci-sstate: |
+    # A warm sstate turns a ~75 min build into a few minutes. SSTATE_MIRRORS is
+    # read-only and safe to point at a published cache; SSTATE_DIR is the local
+    # one the job writes and re-uploads.
+    #SSTATE_MIRRORS = "file://.* https://<owner>.github.io/<repo>/sstate/PATH;downloadfilename=PATH"
+    BB_SIGNATURE_HANDLER = "OEEquivHash"
+    BB_HASHSERVE = "auto"
+
+  ci-reproducible: |
+    # Byte-identical rebuilds from the same inputs, so a rebuilt release can be
+    # compared against the published artefact.
+    BUILD_REPRODUCIBLE_BINARIES = "1"
+    INHERIT += "reproducible_build"
+    # Attribute the build to the commit rather than to whoever ran it.
+    PACKAGE_DEBUG_SPLIT_STYLE = "debug-file-directory"
+
+  ci-provenance: |
+    # SPDX is on by default in this distro; keep the full document with the
+    # artefacts so the release has an SBOM attached.
+    INHERIT += "create-spdx"
