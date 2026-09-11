@@ -31,11 +31,17 @@ ANTHIAS_SIGNING_DIR := "${@d.getVar('ANTHIAS_SIGNING_DIR') or d.getVar('ANTHIAS_
 RAUC_KEY_FILE ?= "${ANTHIAS_SIGNING_DIR}/development-1.key.pem"
 RAUC_CERT_FILE ?= "${ANTHIAS_SIGNING_DIR}/development-1.cert.pem"
 
-# Fail loudly rather than silently shipping a dev-signed bundle to a fleet.
+# Fail loudly rather than silently shipping a dev-signed bundle to a fleet,
+# and give a fresh clone an actionable error rather than a missing-file one.
 python () {
     import os
-    if d.getVar('ANTHIAS_SIGNING_DIR') == d.getVar('ANTHIAS_DEV_PKI_DIR') \
-            and d.getVar('ANTHIAS_RELEASE') == '1':
-        bb.fatal("ANTHIAS_RELEASE=1 but the bundle is still signed with the "
-                 "committed development key. Set ANTHIAS_SIGNING_DIR.")
+    dev = d.getVar('ANTHIAS_DEV_PKI_DIR')
+    if d.getVar('ANTHIAS_SIGNING_DIR') == dev:
+        if d.getVar('ANTHIAS_RELEASE') == '1':
+            bb.fatal("ANTHIAS_RELEASE=1 but the bundle would be signed with the "
+                     "development key. Set ANTHIAS_SIGNING_DIR to a real key.")
+        if not os.path.exists(os.path.join(dev, 'development-1.key.pem')):
+            bb.fatal("No development PKI found. It is not committed because "
+                     "this repository is public. Generate one with:\n"
+                     "    ./scripts/make-dev-pki.sh")
 }
