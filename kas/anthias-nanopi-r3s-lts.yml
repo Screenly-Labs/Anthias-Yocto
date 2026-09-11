@@ -1,0 +1,88 @@
+# kas build configuration for the Anthias NanoPi R3S LTS image.
+#
+#   pip install kas
+#   kas build meta-anthias/kas/anthias-nanopi-r3s-lts.yml
+#
+# Artefacts land in build/tmp/deploy/images/nanopi-r3s-lts/:
+#   anthias-image-nanopi-r3s-lts.rootfs.wic   flash to SD/eMMC
+#   anthias-bundle-nanopi-r3s-lts.raucb       OTA update bundle
+header:
+  version: 14
+
+machine: nanopi-r3s-lts
+distro: anthias
+target:
+  - anthias-image
+  - anthias-bundle
+
+defaults:
+  repos:
+    branch: wrynose
+
+repos:
+  meta-anthias:
+
+  openembedded-core:
+    url: https://git.openembedded.org/openembedded-core
+    layers:
+      meta:
+
+  bitbake:
+    url: https://git.openembedded.org/bitbake
+    branch: "2.18"
+    layers:
+      - disabled
+
+  meta-yocto:
+    url: https://git.yoctoproject.org/meta-yocto
+    layers:
+      meta-poky:
+
+  meta-openembedded:
+    url: https://git.openembedded.org/meta-openembedded
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+      meta-filesystems:
+
+  meta-arm:
+    url: https://git.yoctoproject.org/meta-arm
+    layers:
+      meta-arm:
+      meta-arm-toolchain:
+
+  meta-rockchip:
+    url: https://git.yoctoproject.org/meta-rockchip
+
+  meta-rauc:
+    url: https://github.com/rauc/meta-rauc
+
+  meta-virtualization:
+    url: https://git.yoctoproject.org/meta-virtualization
+
+bblayers_conf_header:
+  standard: |
+    POKY_BBLAYERS_CONF_VERSION = "2"
+    BBPATH = "${TOPDIR}"
+    BBFILES ?= ""
+
+local_conf_header:
+  standard: |
+    CONF_VERSION = "2"
+    PACKAGE_CLASSES = "package_ipk"
+    USER_CLASSES = "buildstats"
+    PATCHRESOLVE = "noop"
+  diskmon: |
+    BB_DISKMON_DIRS = "\
+        STOPTASKS,${TMPDIR},1G,100K \
+        STOPTASKS,${DL_DIR},1G,100K \
+        ABORT,${TMPDIR},100M,1K \
+        ABORT,${DL_DIR},100M,1K"
+  anthias: |
+    # Development convenience: root login on the serial console with no
+    # password. Drop this block for a production image.
+    EXTRA_IMAGE_FEATURES = "allow-empty-password allow-root-login empty-root-password serial-autologin-root"
+    # meta-virtualization is noisy about bbappends it cannot check; the
+    # container recipes we use (docker-moby, docker-compose) are unaffected.
+    SKIP_META_VIRT_SANITY_CHECK = "1"

@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * FriendlyELEC NanoPi R3S LTS
+ *
+ * The LTS revision is electrically the NanoPi R3S with a full-size HDMI
+ * connector and an audio header added. Everything else — RK3566, RK809 PMIC,
+ * eMMC/microSD, GMAC1 + PCIe RTL8111H, USB3 — is unchanged, so this is the
+ * upstream rk3566-nanopi-r3s.dts plus the display pipeline:
+ *
+ *     VOP2 video port 0  ->  Synopsys DW-HDMI TX  ->  HDMI connector
+ *
+ * The upstream R3S dts already enables &vop / &vop_mmu / &gpu (Mali-G52,
+ * panfrost) and already defines the vdda_0v9 / vcca1v8_image rails the HDMI
+ * PHY needs, so only the encoder, the OF graph endpoints and the HDMI audio
+ * DAI have to be added here.
+ */
+
+/dts-v1/;
+#include "rk3566-nanopi-r3s.dts"
+
+/ {
+	model = "FriendlyElec NanoPi R3S LTS";
+	compatible = "friendlyarm,nanopi-r3s-lts", "friendlyarm,nanopi-r3s",
+		     "rockchip,rk3566";
+
+	hdmi-con {
+		compatible = "hdmi-connector";
+		/* type "a" — the LTS board brings out a full-size HDMI socket */
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+};
+
+&hdmi {
+	avdd-0v9-supply = <&vdda_0v9>;
+	avdd-1v8-supply = <&vcca1v8_image>;
+	status = "okay";
+};
+
+&hdmi_in {
+	hdmi_in_vp0: endpoint {
+		remote-endpoint = <&vp0_out_hdmi>;
+	};
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+/* HDMI audio: the viewer container plays through ALSA on the HDMI codec. */
+&hdmi_sound {
+	status = "okay";
+};
+
+&i2s0_8ch {
+	status = "okay";
+};
+
+&vp0 {
+	vp0_out_hdmi: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
+		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
+		remote-endpoint = <&hdmi_in_vp0>;
+	};
+};

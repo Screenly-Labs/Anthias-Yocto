@@ -1,0 +1,13 @@
+[Unit]
+Description=Provision Anthias persistent state on /data
+RequiresMountsFor=/data
+Before=docker.service anthias.service
+ConditionPathIsMountPoint=/data
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/anthias/anthias-provision
+
+[Install]
+WantedBy=multi-user.target

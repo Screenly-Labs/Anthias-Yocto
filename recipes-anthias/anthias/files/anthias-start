@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+# Bring up the upstream Anthias container stack.
+#
+# Nothing here is Anthias-specific glue: we set the two environment
+# variables the upstream scripts expect on a non-Pi host install (USER and
+# HOME) and then hand over to bin/upgrade_containers.sh, exactly as the
+# Armbian/Debian installer does. That script detects DEVICE_TYPE=arm64 from
+# `uname -m`, renders docker-compose.yml from docker-compose.yml.tmpl with
+# envsubst, pulls ghcr.io/screenly/anthias-*:${DOCKER_TAG}-arm64 and runs
+# `docker compose up -d`.
+set -o pipefail
+
+export USER="${ANTHIAS_USER:-anthias}"
+export HOME="/home/${USER}"
+export DOCKER_TAG="${DOCKER_TAG:-latest}"
+
+ANTHIAS_DIR="${HOME}/anthias"
+cd "${ANTHIAS_DIR}" || exit 1
+
+if MODE=pull bash bin/upgrade_containers.sh; then
+    exit 0
+fi
+
+# A signage player must come back up after a power cut even when the network
+# (or ghcr.io) is unavailable, so fall back to whatever is already in the
+# local image store rather than leaving a black screen.
+echo "anthias-start: upgrade_containers.sh failed, starting cached images" >&2
+if [ -f "${ANTHIAS_DIR}/docker-compose.yml" ]; then
+    exec docker compose -f "${ANTHIAS_DIR}/docker-compose.yml" up -d --remove-orphans
+fi
+
+echo "anthias-start: no rendered compose file and no registry access" >&2
+exit 1

@@ -1,0 +1,6 @@
+{
+  "data-root": "/data/docker",
+  "storage-driver": "overlay2",
+  "log-driver": "journald",
+  "live-restore": true
+}

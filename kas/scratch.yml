@@ -1,0 +1,39 @@
+# Overlay that keeps everything bitbake writes on the /scratch volume.
+#
+#   kas build meta-anthias/kas/anthias-nanopi-r3s-lts.yml:meta-anthias/kas/scratch.yml
+#
+# The root filesystem on this builder is a 40 GB LV that is already ~98% full;
+# /scratch is a dedicated 250 GB ext4 volume (/dev/vdb, UUID in /etc/fstab).
+# A full anthias-image build will not fit anywhere else.
+#
+# This fragment adds path and tuning overrides only — no layers, no targets —
+# so it composes with the main config and is a no-op on a builder that does
+# not have /scratch.
+header:
+  version: 14
+
+local_conf_header:
+  scratch-paths: |
+    DL_DIR = "/scratch/yocto/downloads"
+    SSTATE_DIR = "/scratch/yocto/sstate-cache"
+    # TMPDIR follows TOPDIR, which KAS_BUILD_DIR already points at /scratch.
+    TMPDIR = "${TOPDIR}/tmp"
+
+  scratch-diskmon: |
+    # Replaces the ABORT-based BB_DISKMON_DIRS in the main config: bitbake
+    # renamed that action to HALT in 4.2. 2.18 still maps ABORT to HALT, but
+    # warns on every run (monitordisk.py:79). Thresholds are sized for a
+    # 250 GB volume rather than the stock 1G/100K.
+    BB_DISKMON_DIRS = "\
+        STOPTASKS,${TMPDIR},10G,150K \
+        STOPTASKS,${DL_DIR},5G,150K \
+        STOPTASKS,${SSTATE_DIR},5G,150K \
+        HALT,${TMPDIR},2G,50K \
+        HALT,${DL_DIR},1G,50K \
+        HALT,${SSTATE_DIR},1G,50K"
+
+  scratch-parallelism: |
+    # 6 cores / 30 GB on this aarch64 builder. The target is arm64, so the
+    # build is native — no qemu in the loop.
+    BB_NUMBER_THREADS = "6"
+    PARALLEL_MAKE = "-j 6"

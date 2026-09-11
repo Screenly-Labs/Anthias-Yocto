@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Create the persistent state that lives on the /data partition. /data is the
+# only thing a RAUC update does not replace, so everything that has to outlive
+# an OTA — the container image store, the Anthias SQLite DB and config, and
+# the uploaded assets — is anchored here. The matching paths in the rootfs are
+# symlinks shipped by the anthias-stack recipe.
+set -e
+
+install -d -m 0710 /data/docker
+install -d -m 0755 /data/rauc
+install -d -m 0755 -o 1000 -g 1000 /data/anthias
+install -d -m 0755 -o 1000 -g 1000 /data/anthias/config
+install -d -m 0755 -o 1000 -g 1000 /data/anthias/assets
+[ -e /data/anthias/asoundrc ] || install -m 0644 -o 1000 -g 1000 /dev/null /data/anthias/asoundrc

@@ -1,0 +1,19 @@
+[Unit]
+Description=Anthias digital signage stack
+Documentation=https://anthias.screenly.io/docs/
+Requires=docker.service anthias-provision.service
+After=docker.service anthias-provision.service network-online.target time-sync.target
+Wants=network-online.target
+RequiresMountsFor=/data
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# The first boot pulls ~1.5 GB of container images over whatever link the
+# board has; do not let systemd time that out.
+TimeoutStartSec=0
+ExecStart=/usr/libexec/anthias/anthias-start
+ExecStop=/usr/bin/docker compose -f /home/anthias/anthias/docker-compose.yml down
+
+[Install]
+WantedBy=multi-user.target
