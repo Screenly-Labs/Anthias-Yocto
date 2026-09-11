@@ -19,7 +19,9 @@ SRC_URI = " \
 SRCREV_anthias = "a9b82f58dca48096751bd6dd2d0dc631a766fe5e"
 PV = "0.20.0+git"
 
-S = "${UNPACKDIR}/git"
+# S is deliberately not set: since oe-core scarthgap+ bitbake.conf derives it
+# for git SRC_URIs, and wrynose makes an explicit ${UNPACKDIR}/git assignment a
+# hard do_unpack error.
 
 inherit systemd useradd
 

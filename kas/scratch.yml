@@ -18,6 +18,10 @@ local_conf_header:
     SSTATE_DIR = "/scratch/yocto/sstate-cache"
     # TMPDIR follows TOPDIR, which KAS_BUILD_DIR already points at /scratch.
     TMPDIR = "${TOPDIR}/tmp"
+    # The hash-equivalence DB defaults to inside TMPDIR. With a shared
+    # SSTATE_DIR that silently defeats sstate reuse across build dirs, so
+    # park it next to the sstate it describes.
+    BB_HASHSERVE_DB_DIR = "${SSTATE_DIR}"
 
   scratch-diskmon: |
     # Replaces the ABORT-based BB_DISKMON_DIRS in the main config: bitbake

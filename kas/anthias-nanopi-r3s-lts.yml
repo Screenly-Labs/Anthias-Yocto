@@ -30,8 +30,10 @@ repos:
   bitbake:
     url: https://git.openembedded.org/bitbake
     branch: "2.18"
+    # bitbake is not a layer: `layers` is a mapping, and an omitted/empty one
+    # would make kas add the repo root to bblayers.conf.
     layers:
-      - disabled
+      .: disabled
 
   meta-yocto:
     url: https://git.yoctoproject.org/meta-yocto
