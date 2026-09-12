@@ -1,0 +1,29 @@
+# Keeps the SHA pins in .github/workflows current.
+#
+# Pinning to a commit SHA is what stops a compromised or retagged action from
+# silently entering a build that signs fleet artefacts. Dependabot is the other
+# half of that: it rewrites both the SHA and the trailing "# vX.Y.Z" comment,
+# so the pins stay current instead of quietly rotting.
+#
+# github-actions is the only ecosystem that applies here. This repo has no
+# Python, Go or Node manifest and no Dockerfile, so any other entry would be
+# dead config. The Yocto layers are NOT covered - see kas/anthias-*.yml, where
+# the layer repos track branches rather than commits; dependabot cannot express
+# that, `kas lock` can.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    # One PR for all actions rather than ten; this repo has a single workflow
+    # and they are almost always routine bumps.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: ci
+    labels:
+      - dependencies

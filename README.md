@@ -54,6 +54,23 @@ scripts/        make-dev-pki.sh
 See [README-ci.md](README-ci.md) for building in GitHub Actions, signing and
 distribution.
 
+## Pinned dependencies
+
+Every GitHub Action is pinned to a commit SHA with the version in a trailing
+comment, and `.github/dependabot.yml` keeps those pins current — a floating tag
+can be moved under you, and this workflow signs artefacts a fleet will install.
+
+The Yocto layers are pinned the same way, in
+`kas/anthias-nanopi-r3s-lts.lock.yml`. kas picks that up automatically; without
+it the layers track branch heads and no two builds are guaranteed to agree.
+Refresh it deliberately:
+
+```sh
+kas lock --update kas/anthias-nanopi-r3s-lts.yml
+```
+
+Dependabot cannot manage that file, so layer bumps are a manual, reviewed step.
+
 ## Signing keys
 
 `scripts/make-dev-pki.sh` generates a local development CA and signing key.
