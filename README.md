@@ -12,7 +12,7 @@ Docker, RAUC, systemd — and nothing else.
 ## Quick start
 
 ```sh
-pip install kas
+uv tool install kas
 ./scripts/make-dev-pki.sh        # generates a local signing key; not in git
 kas build kas/anthias-nanopi-r3s-lts.yml
 ```

@@ -1,6 +1,6 @@
 # kas build configuration for the Anthias NanoPi R3S LTS image.
 #
-#   pip install kas
+#   uv tool install kas
 #   kas build meta-anthias/kas/anthias-nanopi-r3s-lts.yml
 #
 # Artefacts land in build/tmp/deploy/images/nanopi-r3s-lts/:
