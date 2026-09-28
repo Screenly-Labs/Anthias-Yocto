@@ -29,8 +29,12 @@ local_conf_header:
   ci-reproducible: |
     # Byte-identical rebuilds from the same inputs, so a rebuilt release can be
     # compared against the published artefact.
-    BUILD_REPRODUCIBLE_BINARIES = "1"
-    INHERIT += "reproducible_build"
+    #
+    # Nothing to switch on: oe-core folded reproducible_build.bbclass into
+    # base.bbclass ("reproducible: Merge code into base.bbclass") and then
+    # dropped BUILD_REPRODUCIBLE_BINARIES ("reproducible: Drop
+    # BUILD_REPRODUCIBLE_BINARIES variable"). SOURCE_DATE_EPOCH now comes from
+    # bitbake.conf and every recipe gets the treatment unconditionally.
     # Attribute the build to the commit rather than to whoever ran it.
     PACKAGE_DEBUG_SPLIT_STYLE = "debug-file-directory"
 
