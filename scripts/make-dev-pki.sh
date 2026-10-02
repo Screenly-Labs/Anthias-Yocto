@@ -73,6 +73,21 @@ openssl x509 -req -in "$TMP/leaf.csr" -sha256 -days 3650 \
 chmod 0600 "$BUNDLE_DIR/ca.key.pem" "$BUNDLE_DIR/development-1.key.pem"
 chmod 0644 "$KEYRING_DIR/ca.cert.pem" "$BUNDLE_DIR/development-1.cert.pem"
 
-openssl verify -purpose codesign -CAfile "$KEYRING_DIR/ca.cert.pem" \
-    "$BUNDLE_DIR/development-1.cert.pem"
+# `-purpose codesign` only exists in OpenSSL 3.5 and later. Ubuntu 24.04 --
+# what CI runs on -- ships 3.0.13, which rejects the name outright rather than
+# ignoring it, so probe before relying on it. The fallback checks the same two
+# things separately: the chain verifies, and the leaf carries the codeSigning
+# EKU that rauc's check-purpose=codesign requires.
+if openssl verify -purpose codesign -CAfile "$KEYRING_DIR/ca.cert.pem" \
+        "$BUNDLE_DIR/development-1.cert.pem" 2>/dev/null; then
+    :
+else
+    openssl verify -CAfile "$KEYRING_DIR/ca.cert.pem" \
+        "$BUNDLE_DIR/development-1.cert.pem"
+    openssl x509 -in "$BUNDLE_DIR/development-1.cert.pem" -noout \
+        -ext extendedKeyUsage 2>/dev/null | grep -q 'Code Signing' || {
+        echo "Generated certificate is missing the codeSigning EKU" >&2
+        exit 1
+    }
+fi
 echo "Development PKI written. These files are gitignored - do not commit them."
