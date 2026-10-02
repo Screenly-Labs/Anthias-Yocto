@@ -102,6 +102,14 @@ jobs:
           printf '%s' "$RAUC_CA"   > recipes-core/rauc/files/ca.cert.pem
           echo "SIGNING=1" >> "$GITHUB_ENV"
 
+      # PR and dispatch builds are dev-signed, and the development PKI is
+      # gitignored because this repository is public, so nothing on a fresh
+      # runner creates it. anthias-bundle.bb aborts at parse time when it is
+      # absent, which takes the whole build down before a task runs.
+      - name: Generate development PKI
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: ./scripts/make-dev-pki.sh
+
       - name: Build
         run: |
           CONFIG="kas/anthias-${{ matrix.machine }}.yml:kas/ci.yml"
